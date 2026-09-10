@@ -27,6 +27,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build:wasm": "wasm-pack build crates/comparer --target bundler",
     "build:bindings": "cargo test -p comparer --lib",
