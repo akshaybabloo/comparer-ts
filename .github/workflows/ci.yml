@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: latest
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Check Rust formatting
+        run: cargo fmt --all --check
+
+      - name: Lint Rust
+        run: cargo clippy --all-targets -- -D warnings
+
+      # Also regenerates src/bindings, which the TypeScript build needs.
+      - name: Test Rust
+        run: cargo test
+
+      # Produces crates/comparer/pkg, which src/index.ts imports.
+      - name: Build wasm
+        run: pnpm run build:wasm
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Check formatting
+        run: pnpm exec prettier --check "src/**/*.{ts,js,json,css,md}" "*.{js,json,md}"
+
+      - name: Test TypeScript
+        run: pnpm run test:ts
+
+      - name: Build
+        run: pnpm exec vite build
+
+      - name: Verify published package contents
+        run: pnpm pack --pack-destination "$RUNNER_TEMP"

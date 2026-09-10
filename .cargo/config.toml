@@ -1,0 +1,6 @@
+# Have ts-rs write bindings straight into the TypeScript source tree, so
+# `build:bindings` is just `cargo test` with no copy step. `relative = true`
+# resolves the path against this file's parent directory (the workspace root),
+# which keeps it correct on every platform and from any working directory.
+[env]
+TS_RS_EXPORT_DIR = { value = "src/bindings", relative = true }

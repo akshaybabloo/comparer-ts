@@ -1,0 +1,59 @@
+{
+  "name": "comparer-ts",
+  "version": "1.0.0",
+  "description": "A TypeScript library for generating diffs between strings powered by WebAssembly",
+  "author": "Akshay Raj Gollahalli <akshay@gollahalli.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/akshaybabloo/comparer-ts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/akshaybabloo/comparer-ts/issues"
+  },
+  "homepage": "https://github.com/akshaybabloo/comparer-ts#readme",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/comparer.es.js",
+  "module": "./dist/comparer.es.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/comparer.es.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build:wasm": "wasm-pack build crates/comparer --target bundler",
+    "build:bindings": "cargo test -p comparer --lib",
+    "build": "pnpm run build:wasm && pnpm run build:bindings && vite build",
+    "typecheck": "tsc --noEmit",
+    "test:rust": "cargo test",
+    "test:ts": "vitest run",
+    "test": "pnpm run build:wasm && pnpm run test:rust && pnpm run test:ts",
+    "fmt": "prettier --write \"src/**/*.{ts,js,json,css,md}\" \"*.{js,json,md}\"",
+    "prepublishOnly": "pnpm run build"
+  },
+  "keywords": [
+    "typescript",
+    "diff",
+    "webassembly",
+    "wasm",
+    "comparer",
+    "file-diff"
+  ],
+  "packageManager": "pnpm@12.3.4",
+  "devDependencies": {
+    "@typescript/typescript6": "^6.0.2",
+    "prettier": "^3.9.6",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
+    "vite-plugin-dts": "^5.1.0",
+    "vite-plugin-wasm": "^3.6.0",
+    "vitest": "^5.0.0"
+  }
+}

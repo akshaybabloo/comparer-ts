@@ -1,0 +1,20 @@
+[package]
+name = "comparer"
+version = "0.1.0"
+edition = "2024"
+description = "Line and word level text diffing, compiled to WebAssembly for comparer-ts"
+repository = "https://github.com/akshaybabloo/comparer-ts"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.151"
+similar = { version = "3.2.0", features = ["inline", "serde", "wasm32_web_time"] }
+ts-rs = "12.0.1"
+wasm-bindgen = "0.2.128"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1.7"
