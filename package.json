@@ -49,7 +49,7 @@
     "comparer",
     "file-diff"
   ],
-  "packageManager": "pnpm@12.3.4",
+  "packageManager": "pnpm@12.4.1",
   "devDependencies": {
     "@typescript/typescript6": "^6.0.2",
     "prettier": "^3.9.6",
