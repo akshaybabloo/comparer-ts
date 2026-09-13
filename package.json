@@ -1,7 +1,7 @@
 {
   "name": "comparer-ts",
-  "version": "1.0.0",
-  "description": "A TypeScript library for generating diffs between strings powered by WebAssembly",
+  "version": "1.1.0",
+  "description": "A TypeScript library for diffing strings and folders, powered by WebAssembly",
   "author": "Akshay Raj Gollahalli <akshay@gollahalli.com>",
   "license": "MIT",
   "repository": {
@@ -47,7 +47,8 @@
     "webassembly",
     "wasm",
     "comparer",
-    "file-diff"
+    "file-diff",
+    "folder-diff"
   ],
   "packageManager": "pnpm@12.4.1",
   "devDependencies": {

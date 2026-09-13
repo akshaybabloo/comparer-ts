@@ -1,8 +1,8 @@
 [package]
 name = "comparer"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
-description = "Line and word level text diffing, compiled to WebAssembly for comparer-ts"
+description = "Text and folder diffing, compiled to WebAssembly for comparer-ts"
 repository = "https://github.com/akshaybabloo/comparer-ts"
 license = "MIT"
 
@@ -15,6 +15,7 @@ serde_json = "1.0.151"
 similar = { version = "3.2.0", features = ["inline", "serde", "wasm32_web_time"] }
 ts-rs = "12.0.1"
 wasm-bindgen = "0.2.128"
+xxhash-rust = { version = "0.8.18", features = ["xxh3"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.7"
