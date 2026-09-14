@@ -1,6 +1,7 @@
 import {
   FolderComparer,
   Hasher,
+  ImagePair as WasmImagePair,
   compare_images,
   compare_images_rgba,
   generate_diff,
@@ -195,6 +196,45 @@ export function compareImagesRgba(
 ): ImageDiff {
   const { tolerance = 0, diffRgba = false, diffPng = false } = options;
   return toImageDiff(compare_images_rgba(asBytes(left), asBytes(right), width, height, tolerance, diffRgba, diffPng));
+}
+
+export type ImageSize = { width: number; height: number };
+
+/** Two images decoded once, to compare as often as needed. */
+export type ImagePair = {
+  readonly left: ImageSize;
+  readonly right: ImageSize;
+  /** Both images have the same dimensions; `compare` throws otherwise. */
+  readonly sameSize: boolean;
+  /** Compares the images, like {@link compareImages} but without decoding them again. */
+  compare(options?: CompareImagesOptions): ImageDiff;
+  /** Releases the decoded pixels. The pair cannot be used afterwards. */
+  free(): void;
+};
+
+/**
+ * Decodes two images once, for comparing them repeatedly — at different tolerances, as a
+ * slider moves — without paying for the decode each time.
+ *
+ * Images of different sizes still decode, so their sizes can be shown, but comparing
+ * them throws. Call `free` when done: the decoded pixels live in WebAssembly memory,
+ * which is not garbage collected.
+ *
+ * @param left The original image, as PNG, JPEG, WebP, GIF or BMP bytes.
+ * @param right The changed image, in any of the same formats.
+ */
+export function createImagePair(left: Uint8Array, right: Uint8Array): ImagePair {
+  const pair = new WasmImagePair(left, right);
+  return {
+    left: { width: pair.left_width, height: pair.left_height },
+    right: { width: pair.right_width, height: pair.right_height },
+    sameSize: pair.same_size,
+    compare: (options = {}) => {
+      const { tolerance = 0, diffRgba = false, diffPng = false } = options;
+      return toImageDiff(pair.compare(tolerance, diffRgba, diffPng));
+    },
+    free: () => pair.free(),
+  };
 }
 
 /** Views clamped pixels as plain bytes, without copying them. */

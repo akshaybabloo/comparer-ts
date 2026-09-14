@@ -135,6 +135,34 @@ impl Threshold {
     }
 }
 
+/// An image decoded to 8-bit RGBA, row by row.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DecodedImage {
+    pub width: u32,
+    pub height: u32,
+    pub pixels: Vec<u8>,
+}
+
+/// Decodes a PNG, JPEG, WebP, GIF or BMP image to 8-bit RGBA, so a 16-bit image comes
+/// out at 8-bit precision.
+///
+/// Decoding is usually the slow part of a comparison, so a caller comparing the same
+/// images more than once, at different tolerances say, can decode them once here and
+/// hand the pixels to [`diff_rgba`] each time. `side` names the image in an error.
+pub fn decode(bytes: &[u8], side: &'static str) -> Result<DecodedImage, DiffError> {
+    let image = image::load_from_memory(bytes)
+        .map_err(|error| DiffError::Decode {
+            side,
+            reason: error.to_string(),
+        })?
+        .into_rgba8();
+    Ok(DecodedImage {
+        width: image.width(),
+        height: image.height(),
+        pixels: image.into_raw(),
+    })
+}
+
 /// Decodes two PNG, JPEG, WebP, GIF or BMP images and compares them.
 ///
 /// The images may be in different formats: both are converted to 8-bit RGBA first,
@@ -147,25 +175,28 @@ pub fn diff_encoded(
     // Checked up front, so a bad tolerance does not wait for two decodes to be reported.
     Threshold::new(options.tolerance)?;
 
-    let decode = |side: &'static str, bytes: &[u8]| {
-        image::load_from_memory(bytes)
-            .map(|image| image.into_rgba8())
-            .map_err(|error| DiffError::Decode {
-                side,
-                reason: error.to_string(),
-            })
-    };
-    let left = decode("left", left)?;
-    let right = decode("right", right)?;
+    let left = decode(left, "left")?;
+    let right = decode(right, "right")?;
+    check_dimensions(&left, &right)?;
+    diff_rgba(
+        &left.pixels,
+        &right.pixels,
+        left.width,
+        left.height,
+        options,
+    )
+}
 
-    if left.dimensions() != right.dimensions() {
-        return Err(DiffError::DimensionMismatch {
-            left: left.dimensions(),
-            right: right.dimensions(),
-        });
+/// Fails with [`DiffError::DimensionMismatch`] unless both images are the same size.
+pub fn check_dimensions(left: &DecodedImage, right: &DecodedImage) -> Result<(), DiffError> {
+    if (left.width, left.height) == (right.width, right.height) {
+        Ok(())
+    } else {
+        Err(DiffError::DimensionMismatch {
+            left: (left.width, left.height),
+            right: (right.width, right.height),
+        })
     }
-    let (width, height) = left.dimensions();
-    diff_rgba(left.as_raw(), right.as_raw(), width, height, options)
 }
 
 /// Compares two images given as raw RGBA pixels, row by row, such as a canvas's

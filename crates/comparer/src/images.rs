@@ -1,4 +1,7 @@
-use image_diff::{DiffError, DiffOptions, ImageDiff, diff_encoded, encode_png};
+use image_diff::{
+    DecodedImage, DiffError, DiffOptions, ImageDiff, check_dimensions, decode, diff_encoded,
+    encode_png,
+};
 use wasm_bindgen::prelude::*;
 
 use crate::CompareError;
@@ -105,4 +108,71 @@ pub fn compare_images_rgba(
     let options = options(tolerance, diff_rgba, diff_png);
     let diff = image_diff::diff_rgba(left, right, width, height, &options);
     ImageComparison::new(diff, diff_rgba, diff_png)
+}
+
+/// Two images decoded once and kept in WebAssembly memory, to be compared as often as
+/// needed: a tolerance slider can re-run [`ImagePair::compare`] on every move without
+/// paying for either decode again.
+///
+/// The images may differ in size. Their sizes stay readable so the difference can be
+/// explained, but comparing them fails.
+#[wasm_bindgen]
+pub struct ImagePair {
+    left: DecodedImage,
+    right: DecodedImage,
+}
+
+#[wasm_bindgen]
+impl ImagePair {
+    /// Decodes two PNG, JPEG, WebP, GIF or BMP images.
+    #[wasm_bindgen(constructor)]
+    pub fn new(left: &[u8], right: &[u8]) -> Result<ImagePair, CompareError> {
+        Ok(ImagePair {
+            left: decode(left, "left")?,
+            right: decode(right, "right")?,
+        })
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn left_width(&self) -> u32 {
+        self.left.width
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn left_height(&self) -> u32 {
+        self.left.height
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn right_width(&self) -> u32 {
+        self.right.width
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn right_height(&self) -> u32 {
+        self.right.height
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn same_size(&self) -> bool {
+        check_dimensions(&self.left, &self.right).is_ok()
+    }
+
+    /// Compares the two images, like [`compare_images`] but without decoding them again.
+    pub fn compare(
+        &self,
+        tolerance: f64,
+        diff_rgba: bool,
+        diff_png: bool,
+    ) -> Result<ImageComparison, CompareError> {
+        check_dimensions(&self.left, &self.right)?;
+        let diff = image_diff::diff_rgba(
+            &self.left.pixels,
+            &self.right.pixels,
+            self.left.width,
+            self.left.height,
+            &options(tolerance, diff_rgba, diff_png),
+        );
+        ImageComparison::new(diff, diff_rgba, diff_png)
+    }
 }

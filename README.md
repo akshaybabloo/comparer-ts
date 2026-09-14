@@ -205,6 +205,24 @@ const diff = compareImagesRgba(before.data, after.data, before.width, before.hei
 context.putImageData(new ImageData(diff.diff_rgba!, diff.width, diff.height), 0, 0);
 ```
 
+To compare the same two images repeatedly — at different tolerances, say, as a slider moves — decode them once with `createImagePair`, which keeps the pixels in WebAssembly memory:
+
+```ts
+import { createImagePair } from "comparer-ts";
+
+const pair = createImagePair(await readFile("before.png"), await readFile("after.png"));
+try {
+  if (!pair.sameSize)
+    throw new Error(`${pair.left.width}x${pair.left.height} vs ${pair.right.width}x${pair.right.height}`);
+  const strict = pair.compare({ tolerance: 0 });
+  const lenient = pair.compare({ tolerance: 10, diffPng: true });
+} finally {
+  pair.free(); // WebAssembly memory is not garbage collected
+}
+```
+
+Images of different sizes still decode, so `left`, `right` and `sameSize` can explain the mismatch; only `compare` throws.
+
 | Option      | Description                                                                |
 | ----------- | -------------------------------------------------------------------------- |
 | `tolerance` | How much colour difference to tolerate, from `0` (the default) to `100`.   |

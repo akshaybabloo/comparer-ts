@@ -1,4 +1,7 @@
-use image_diff::{DiffError, DiffOptions, diff_band, diff_encoded, diff_rgba, encode_png};
+use image_diff::{
+    DecodedImage, DiffError, DiffOptions, check_dimensions, decode, diff_band, diff_encoded,
+    diff_rgba, encode_png,
+};
 
 const BLACK: [u8; 4] = [0, 0, 0, 255];
 const WHITE: [u8; 4] = [255, 255, 255, 255];
@@ -267,5 +270,47 @@ fn rejects_bytes_that_are_not_an_image() {
     assert!(
         matches!(error, DiffError::Decode { side: "right", .. }),
         "{error}"
+    );
+}
+
+#[test]
+fn decode_returns_rgba_pixels_row_by_row() {
+    let mut pixels = fill(3, 2, BLACK);
+    set_pixel(&mut pixels, 3, 2, 1, WHITE);
+
+    let decoded = decode(&encode_png(&pixels, 3, 2).unwrap(), "left").unwrap();
+
+    assert_eq!(
+        decoded,
+        DecodedImage {
+            width: 3,
+            height: 2,
+            pixels
+        }
+    );
+}
+
+#[test]
+fn decode_names_the_side_in_its_error() {
+    let error = decode(b"not an image", "right").unwrap_err();
+
+    assert!(matches!(error, DiffError::Decode { side: "right", .. }));
+}
+
+#[test]
+fn check_dimensions_compares_width_and_height() {
+    let image = |width, height| DecodedImage {
+        width,
+        height,
+        pixels: fill(width, height, BLACK),
+    };
+
+    assert_eq!(check_dimensions(&image(2, 3), &image(2, 3)), Ok(()));
+    assert_eq!(
+        check_dimensions(&image(2, 3), &image(3, 2)),
+        Err(DiffError::DimensionMismatch {
+            left: (2, 3),
+            right: (3, 2)
+        })
     );
 }

@@ -4,6 +4,7 @@ import {
   compareFolders,
   compareImages,
   compareImagesRgba,
+  createImagePair,
   generateDiff,
   generateInlineDiff,
   type FsEntry,
@@ -279,6 +280,48 @@ describe("compareImages", () => {
 
   it("throws for bytes that are not an image", () => {
     expect(() => compareImages(png(BLACK), new TextEncoder().encode("not an image"))).toThrow(
+      "right image could not be decoded",
+    );
+  });
+});
+
+describe("createImagePair", () => {
+  const RED = [255, 0, 0, 255];
+  const rgba = (last: number[], width = 2) =>
+    new Uint8Array([...Array.from({ length: width * 2 - 1 }, () => RED).flat(), ...last]);
+  const png = (last: number[], width = 2) =>
+    compareImagesRgba(rgba(RED, width), rgba(last, width), width, 2, { diffPng: true }).diff_png!;
+
+  it("compares at any tolerance without decoding again", () => {
+    // A diff PNG paints the changed pixel red and fades the rest, so these two differ slightly.
+    const pair = createImagePair(png(RED), png([250, 0, 0, 255]));
+    try {
+      expect(pair.sameSize).toBe(true);
+      expect(pair.left).toEqual({ width: 2, height: 2 });
+      const strict = pair.compare();
+      const lenient = pair.compare({ tolerance: 100 });
+      expect(strict.different_pixels).toBeGreaterThan(0);
+      expect(lenient.identical).toBe(true);
+      expect(pair.compare().different_pixels).toBe(strict.different_pixels);
+      expect(pair.compare({ diffPng: true }).diff_png).toBeInstanceOf(Uint8Array);
+    } finally {
+      pair.free();
+    }
+  });
+
+  it("reports both sizes, but throws when comparing different ones", () => {
+    const pair = createImagePair(png(RED), png(RED, 3));
+    try {
+      expect(pair.sameSize).toBe(false);
+      expect(pair.right).toEqual({ width: 3, height: 2 });
+      expect(() => pair.compare()).toThrow("images differ in size: left is 2x2, right is 3x2");
+    } finally {
+      pair.free();
+    }
+  });
+
+  it("throws for bytes that are not an image", () => {
+    expect(() => createImagePair(png(RED), new TextEncoder().encode("nope"))).toThrow(
       "right image could not be decoded",
     );
   });

@@ -1,4 +1,5 @@
-use comparer::{compare_images, compare_images_rgba};
+use comparer::{ImagePair, compare_images, compare_images_rgba};
+use image_diff::encode_png;
 
 const RED: [u8; 4] = [255, 0, 0, 255];
 const BLUE: [u8; 4] = [0, 0, 255, 255];
@@ -76,5 +77,53 @@ fn compare_images_reports_why_it_failed() {
             .to_string()
             .starts_with("left image could not be decoded"),
         "{error}"
+    );
+}
+
+fn png(pixel: [u8; 4], last: [u8; 4]) -> Vec<u8> {
+    encode_png(&image(pixel, last), 2, 2).unwrap()
+}
+
+#[test]
+fn image_pair_compares_at_any_tolerance_without_decoding_again() {
+    let pair = ImagePair::new(&png(RED, RED), &png(RED, [250, 0, 0, 255])).unwrap();
+
+    assert!(pair.same_size());
+    assert_eq!(
+        pair.compare(0.0, false, false).unwrap().different_pixels(),
+        1.0
+    );
+    assert_eq!(
+        pair.compare(10.0, false, false).unwrap().different_pixels(),
+        0.0
+    );
+    // And back again: comparing never consumes the decoded pixels.
+    let mut again = pair.compare(0.0, false, true).unwrap();
+    assert_eq!(again.different_pixels(), 1.0);
+    assert!(again.take_diff_png().is_some());
+}
+
+#[test]
+fn image_pair_reports_both_sizes_but_refuses_to_compare_different_ones() {
+    let wide = encode_png(&[RED; 6].concat(), 3, 2).unwrap();
+    let pair = ImagePair::new(&png(RED, RED), &wide).unwrap();
+
+    assert!(!pair.same_size());
+    assert_eq!((pair.left_width(), pair.left_height()), (2, 2));
+    assert_eq!((pair.right_width(), pair.right_height()), (3, 2));
+    assert_eq!(
+        pair.compare(0.0, false, false).err().unwrap().to_string(),
+        "images differ in size: left is 2x2, right is 3x2"
+    );
+}
+
+#[test]
+fn image_pair_names_the_image_that_cannot_be_decoded() {
+    let error = ImagePair::new(&png(RED, RED), b"nope").err().unwrap();
+
+    assert!(
+        error
+            .to_string()
+            .starts_with("right image could not be decoded")
     );
 }
