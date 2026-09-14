@@ -1,3 +1,5 @@
+use std::fmt;
+
 use serde::Serialize;
 use similar::{ChangeTag, TextDiff};
 use ts_rs::TS;
@@ -7,12 +9,27 @@ mod folder;
 mod hasher;
 mod images;
 
-pub use folder::{
-    ChangeReason, ChangeStatus, CompareError, EntryKind, FolderComparer, FolderDiff, FolderStats,
-    FsEntry, HashJob, Side, TreeNode,
-};
+pub use folder::FolderComparer;
 pub use hasher::Hasher;
 pub use images::{ImageComparison, compare_images, compare_images_rgba};
+
+/// An error from any comparison, thrown into JavaScript as an `Error` with this message.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompareError(pub(crate) String);
+
+impl fmt::Display for CompareError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for CompareError {}
+
+impl From<CompareError> for JsValue {
+    fn from(error: CompareError) -> JsValue {
+        JsError::new(&error.0).into()
+    }
+}
 
 /// Installs a panic hook so Rust panics surface as readable JS console errors
 /// instead of an opaque `unreachable` trap.
