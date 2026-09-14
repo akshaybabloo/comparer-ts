@@ -67,10 +67,8 @@ dependencies = [
  "console_error_panic_hook",
  "folder-diff",
  "image-diff",
- "serde",
  "serde_json",
- "similar",
- "ts-rs",
+ "text-diff",
  "wasm-bindgen",
 ]
 
@@ -482,7 +480,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4f66ca1f7aca2474dc10c942eb22feffc897735f54cd1db90138c2fddb490987"
 dependencies = [
  "bstr",
- "serde",
  "web-time",
 ]
 
@@ -534,6 +531,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "text-diff"
+version = "0.1.0"
+dependencies = [
+ "rayon",
+ "serde",
+ "similar",
+ "ts-rs",
 ]
 
 [[package]]

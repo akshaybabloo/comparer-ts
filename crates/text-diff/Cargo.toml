@@ -1,0 +1,28 @@
+[package]
+name = "text-diff"
+version = "0.1.0"
+edition = "2024"
+description = "Line and word level text diffing, for comparer-ts"
+repository = "https://github.com/akshaybabloo/comparer-ts"
+license = "MIT"
+
+[features]
+# (De)serialize the diff types, as comparer does to pass them through JSON.
+serde = ["dep:serde"]
+# Also generate TypeScript definitions for those types with ts-rs.
+ts = ["serde", "dep:ts-rs"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"], optional = true }
+similar = { version = "3.2.0", features = ["inline"] }
+ts-rs = { version = "12.0.1", optional = true }
+
+# Word-level highlighting runs under a deadline, and WebAssembly has no clock `std` can
+# read, so there similar tells time through the browser's instead.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+similar = { version = "3.2.0", features = ["inline", "wasm32_web_time"] }
+
+# WebAssembly has no threads without nightly features, so changes are expanded one
+# after another there.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rayon = "1.12.0"

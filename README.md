@@ -241,6 +241,7 @@ import type {
   FsEntry,
   InlineLineDiff,
   LineDiff,
+  LineTag,
   Segment,
   TreeNode,
 } from "comparer-ts";
