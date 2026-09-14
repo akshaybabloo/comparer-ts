@@ -32,7 +32,7 @@
   },
   "scripts": {
     "build:wasm": "wasm-pack build crates/comparer --target bundler",
-    "build:bindings": "cargo test -p comparer -p folder-diff --lib",
+    "build:bindings": "cargo test -p comparer -p folder-diff -p text-diff --lib",
     "build": "pnpm run build:wasm && pnpm run build:bindings && vite build",
     "typecheck": "tsc --noEmit",
     "test:rust": "cargo test",

@@ -19,6 +19,7 @@ export type { ChangeReason } from "./bindings/ChangeReason";
 export type { ChangeStatus } from "./bindings/ChangeStatus";
 export type { EntryKind } from "./bindings/EntryKind";
 export type { FolderStats } from "./bindings/FolderStats";
+export type { LineTag } from "./bindings/LineTag";
 export type { Segment } from "./bindings/Segment";
 export type { TreeNode } from "./bindings/TreeNode";
 
