@@ -2,7 +2,7 @@
 name = "comparer"
 version = "0.2.0"
 edition = "2024"
-description = "Text and folder diffing, compiled to WebAssembly for comparer-ts"
+description = "Text, folder and image diffing, compiled to WebAssembly for comparer-ts"
 repository = "https://github.com/akshaybabloo/comparer-ts"
 license = "MIT"
 
@@ -10,6 +10,7 @@ license = "MIT"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+image-diff = { version = "0.1.0", path = "../image-diff" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.151"
 similar = { version = "3.2.0", features = ["inline", "serde", "wasm32_web_time"] }

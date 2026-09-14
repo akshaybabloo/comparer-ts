@@ -1,8 +1,8 @@
 # comparer-ts
 
-A TypeScript library for diffing strings and folders, powered by WebAssembly.
+A TypeScript library for diffing strings, folders and images, powered by WebAssembly.
 
-Text diffing is done in Rust by [similar](https://github.com/mitsuhiko/similar), and folder diffing in Rust too, both compiled to WebAssembly, so it stays fast on large inputs while the public API remains plain TypeScript.
+Text diffing is done in Rust by [similar](https://github.com/mitsuhiko/similar), and folder and image diffing in Rust too, all compiled to WebAssembly, so it stays fast on large inputs while the public API remains plain TypeScript.
 
 ## Install
 
@@ -168,6 +168,65 @@ The result is a `FolderDiff`:
 
 Pass `{ signal }` to cancel, `{ onProgress }` to receive `{ done, total, bytes }` after each file, and `{ concurrency }` to change how many files are read at once (default 8).
 
+### Image diff
+
+`compareImages` compares two images pixel by pixel. They are decoded in WebAssembly, can be PNG, JPEG, WebP, GIF or BMP — not necessarily the same format — and must be the same size.
+
+```ts
+import { readFile, writeFile } from "node:fs/promises";
+import { compareImages } from "comparer-ts";
+
+const diff = compareImages(await readFile("before.png"), await readFile("after.png"), {
+  tolerance: 5,
+  diffPng: true,
+});
+
+if (!diff.identical) await writeFile("diff.png", diff.diff_png!);
+```
+
+```json
+{
+  "width": 1920,
+  "height": 1080,
+  "different_pixels": 5184,
+  "total_pixels": 2073600,
+  "percent": 0.25,
+  "identical": false,
+  "diff_rgba": null,
+  "diff_png": "<Uint8Array of PNG bytes>"
+}
+```
+
+In a browser, `compareImagesRgba` takes raw RGBA pixels instead, such as a canvas's `ImageData.data`, and skips decoding altogether:
+
+```ts
+const diff = compareImagesRgba(before.data, after.data, before.width, before.height, { diffRgba: true });
+
+context.putImageData(new ImageData(diff.diff_rgba!, diff.width, diff.height), 0, 0);
+```
+
+| Option      | Description                                                                |
+| ----------- | -------------------------------------------------------------------------- |
+| `tolerance` | How much colour difference to tolerate, from `0` (the default) to `100`.   |
+| `diffRgba`  | Paint the diff image as raw RGBA pixels, in `diff_rgba`. Otherwise `null`. |
+| `diffPng`   | Paint the diff image as PNG bytes, in `diff_png`. Otherwise `null`.        |
+
+The diff image paints each differing pixel red and the rest of the left image faded to a light grey. Ask for both forms at once and the pixels are only compared once.
+
+Pixels are compared by their difference in the YIQ colour space, the measure [pixelmatch](https://github.com/mapbox/pixelmatch) uses, which weights brightness over hue roughly as the eye does. Transparent pixels are blended onto white first.
+
+| `tolerance` | What is tolerated                                                                       |
+| ----------- | --------------------------------------------------------------------------------------- |
+| `0`         | Nothing: any change to a pixel's bytes counts, even to an invisible, transparent pixel. |
+| `1`         | A one-step change in a single channel.                                                  |
+| `5`–`10`    | Small shifts in shade, of the kind JPEG compression and anti-aliasing leave behind.     |
+| `97`        | Almost anything, black against white included.                                          |
+| `100`       | Every change.                                                                           |
+
+A pixel counts as different when its YIQ difference is over `(tolerance / 100)²` of the largest possible one, so the scale is finer at the low end, where tolerances are usually set.
+
+In Rust the comparison runs on every core, one band of rows per thread. WebAssembly has no threads without cross-origin isolation and nightly Rust, so there it runs on one: a 4K frame takes about 15–65 ms to count, depending on how much changed, and painting a diff image adds about 70 ms.
+
 ### Types
 
 The result and listing types are generated from the Rust structs by [ts-rs](https://github.com/Aleph-Alpha/ts-rs) and exported from the package root:
@@ -185,6 +244,12 @@ import type {
   Segment,
   TreeNode,
 } from "comparer-ts";
+```
+
+The image diff types hold pixel buffers, which ts-rs cannot describe, so they are written in TypeScript and exported alongside:
+
+```ts
+import type { CompareImagesOptions, ImageDiff } from "comparer-ts";
 ```
 
 ## Development

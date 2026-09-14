@@ -166,7 +166,7 @@ pub struct FolderDiff {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CompareError(String);
+pub struct CompareError(pub(crate) String);
 
 impl CompareError {
     fn entry(side: Side, path: &str, reason: &str) -> Self {
