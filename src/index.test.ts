@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { Hasher } from "../crates/comparer/pkg/comparer.js";
 import {
   compareFolders,
+  compareImages,
+  compareImagesRgba,
   generateDiff,
   generateInlineDiff,
   type FsEntry,
@@ -204,6 +206,80 @@ describe("compareFolders", () => {
   it("rejects an invalid listing", async () => {
     await expect(compareFolders([file("a/b", 1)], [], reader({ left: {}, right: {} }))).rejects.toThrow(
       'left entry "a": has entries inside it but is not listed',
+    );
+  });
+});
+
+describe("compareImagesRgba", () => {
+  const RED = [255, 0, 0, 255];
+  const BLUE = [0, 0, 255, 255];
+  /** A 2x2 image of `pixel`, with its last pixel replaced by `last`. */
+  const image = (pixel: number[], last = pixel) => new Uint8Array([...pixel, ...pixel, ...pixel, ...last]);
+
+  it("counts the pixels that differ", () => {
+    const diff = compareImagesRgba(image(RED), image(RED, BLUE), 2, 2);
+
+    expect(diff).toEqual({
+      width: 2,
+      height: 2,
+      different_pixels: 1,
+      total_pixels: 4,
+      percent: 25,
+      identical: false,
+      diff_rgba: null,
+      diff_png: null,
+    });
+  });
+
+  it("accepts the clamped pixels of an ImageData", () => {
+    const pixels = (bytes: Uint8Array) => new Uint8ClampedArray(bytes.buffer);
+
+    expect(compareImagesRgba(pixels(image(RED)), pixels(image(BLUE)), 2, 2).different_pixels).toBe(4);
+  });
+
+  it("tolerates changes up to the tolerance", () => {
+    const [black, white] = [image([0, 0, 0, 255]), image([255, 255, 255, 255])];
+
+    expect(compareImagesRgba(black, white, 2, 2, { tolerance: 90 }).identical).toBe(false);
+    expect(compareImagesRgba(black, white, 2, 2, { tolerance: 100 }).identical).toBe(true);
+  });
+
+  it("paints the diff image in each form asked for", () => {
+    const diff = compareImagesRgba(image(RED), image(RED, BLUE), 2, 2, { diffRgba: true, diffPng: true });
+
+    expect(diff.diff_rgba).toBeInstanceOf(Uint8ClampedArray);
+    expect(Array.from(diff.diff_rgba!.subarray(12))).toEqual(RED);
+    expect(Array.from(diff.diff_png!.subarray(0, 8))).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  });
+
+  it("throws when the pixels do not match the dimensions", () => {
+    expect(() => compareImagesRgba(image(RED), image(RED), 3, 2)).toThrow("left buffer is 16 bytes, expected 24");
+  });
+
+  it("throws for a tolerance out of range", () => {
+    expect(() => compareImagesRgba(image(RED), image(RED), 2, 2, { tolerance: 101 })).toThrow(
+      "tolerance must be between 0 and 100, got 101",
+    );
+  });
+});
+
+describe("compareImages", () => {
+  const BLACK = [0, 0, 0, 255];
+  /** A 2x2 black image, with its last pixel replaced by `last`. */
+  const image = (last: number[]) => new Uint8Array([...BLACK, ...BLACK, ...BLACK, ...last]);
+  // Diff images are PNGs the library can already make, so they stand in for encoded files.
+  const png = (last: number[]) => compareImagesRgba(image(BLACK), image(last), 2, 2, { diffPng: true }).diff_png!;
+
+  it("decodes both images and compares their pixels", () => {
+    // Only the last pixel of the second diff image is painted red.
+    const diff = compareImages(png(BLACK), png([9, 9, 9, 255]));
+
+    expect(diff).toMatchObject({ width: 2, height: 2, different_pixels: 1, identical: false });
+  });
+
+  it("throws for bytes that are not an image", () => {
+    expect(() => compareImages(png(BLACK), new TextEncoder().encode("not an image"))).toThrow(
+      "right image could not be decoded",
     );
   });
 });

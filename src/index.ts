@@ -1,4 +1,12 @@
-import { FolderComparer, Hasher, generate_diff, generate_inline_diff } from "../crates/comparer/pkg/comparer.js";
+import {
+  FolderComparer,
+  Hasher,
+  compare_images,
+  compare_images_rgba,
+  generate_diff,
+  generate_inline_diff,
+  type ImageComparison,
+} from "../crates/comparer/pkg/comparer.js";
 import type { FolderDiff } from "./bindings/FolderDiff";
 import type { FsEntry } from "./bindings/FsEntry";
 import type { HashJob } from "./bindings/HashJob";
@@ -33,6 +41,38 @@ export type CompareFoldersOptions = {
   signal?: AbortSignal;
   /** Called after each file is hashed. */
   onProgress?: (progress: HashProgress) => void;
+};
+
+export type CompareImagesOptions = {
+  /**
+   * How much colour difference to tolerate, from 0 to 100. At 0, the default, any change
+   * to a pixel counts; at 100 every change is tolerated.
+   */
+  tolerance?: number;
+  /** Paint the diff image as raw RGBA pixels, in `diff_rgba`. */
+  diffRgba?: boolean;
+  /** Paint the diff image as PNG bytes, in `diff_png`. */
+  diffPng?: boolean;
+};
+
+export type ImageDiff = {
+  width: number;
+  height: number;
+  /** Pixels that differ by more than the tolerance. */
+  different_pixels: number;
+  total_pixels: number;
+  /** `different_pixels` as a percentage of `total_pixels`, or 0 for an empty image. */
+  percent: number;
+  /** No pixel differs by more than the tolerance. */
+  identical: boolean;
+  /**
+   * The diff image as RGBA, row by row: differing pixels red, the rest of the left image
+   * faded to grey. Ready for `new ImageData(diff_rgba, width, height)`. `null` unless
+   * `diffRgba` is set.
+   */
+  diff_rgba: Uint8ClampedArray<ArrayBuffer> | null;
+  /** The same diff image encoded as PNG. `null` unless `diffPng` is set. */
+  diff_png: Uint8Array<ArrayBuffer> | null;
 };
 
 /**
@@ -118,6 +158,70 @@ export async function compareFolders(
   }
 
   return JSON.parse(comparer.finish());
+}
+
+/**
+ * Compares two images pixel by pixel.
+ *
+ * The images are decoded in WebAssembly and may be in different formats, but must be the
+ * same size.
+ *
+ * @param left The original image, as PNG, JPEG, WebP, GIF or BMP bytes.
+ * @param right The changed image, in any of the same formats.
+ * @returns How many pixels differ, and the diff image if asked for.
+ */
+export function compareImages(left: Uint8Array, right: Uint8Array, options: CompareImagesOptions = {}): ImageDiff {
+  const { tolerance = 0, diffRgba = false, diffPng = false } = options;
+  return toImageDiff(compare_images(left, right, tolerance, diffRgba, diffPng));
+}
+
+/**
+ * Compares two images given as raw RGBA pixels, row by row, such as a canvas's
+ * `ImageData.data`. Nothing is decoded, so this is faster than {@link compareImages}.
+ *
+ * @param left The original image's pixels.
+ * @param right The changed image's pixels.
+ * @param width The width of both images.
+ * @param height The height of both images.
+ * @returns How many pixels differ, and the diff image if asked for.
+ */
+export function compareImagesRgba(
+  left: Uint8Array | Uint8ClampedArray,
+  right: Uint8Array | Uint8ClampedArray,
+  width: number,
+  height: number,
+  options: CompareImagesOptions = {},
+): ImageDiff {
+  const { tolerance = 0, diffRgba = false, diffPng = false } = options;
+  return toImageDiff(compare_images_rgba(asBytes(left), asBytes(right), width, height, tolerance, diffRgba, diffPng));
+}
+
+/** Views clamped pixels as plain bytes, without copying them. */
+function asBytes(pixels: Uint8Array | Uint8ClampedArray): Uint8Array {
+  return pixels instanceof Uint8Array ? pixels : new Uint8Array(pixels.buffer, pixels.byteOffset, pixels.byteLength);
+}
+
+function toImageDiff(comparison: ImageComparison): ImageDiff {
+  try {
+    const { width, height, different_pixels } = comparison;
+    const total_pixels = width * height;
+    // Copied out of WebAssembly memory into buffers of their own.
+    const rgba = comparison.take_diff_rgba();
+    const png = comparison.take_diff_png();
+
+    return {
+      width,
+      height,
+      different_pixels,
+      total_pixels,
+      percent: total_pixels === 0 ? 0 : (different_pixels / total_pixels) * 100,
+      identical: different_pixels === 0,
+      diff_rgba: rgba ? new Uint8ClampedArray(rgba.buffer as ArrayBuffer, rgba.byteOffset, rgba.byteLength) : null,
+      diff_png: png ? new Uint8Array(png.buffer as ArrayBuffer, png.byteOffset, png.byteLength) : null,
+    };
+  } finally {
+    comparison.free();
+  }
 }
 
 async function hashChunks(

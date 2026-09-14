@@ -5,12 +5,14 @@ use wasm_bindgen::prelude::*;
 
 mod folder;
 mod hasher;
+mod images;
 
 pub use folder::{
     ChangeReason, ChangeStatus, CompareError, EntryKind, FolderComparer, FolderDiff, FolderStats,
     FsEntry, HashJob, Side, TreeNode,
 };
 pub use hasher::Hasher;
+pub use images::{ImageComparison, compare_images, compare_images_rgba};
 
 /// Installs a panic hook so Rust panics surface as readable JS console errors
 /// instead of an opaque `unreachable` trap.
