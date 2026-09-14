@@ -3,6 +3,15 @@ use similar::{ChangeTag, TextDiff};
 use ts_rs::TS;
 use wasm_bindgen::prelude::*;
 
+mod folder;
+mod hasher;
+
+pub use folder::{
+    ChangeReason, ChangeStatus, CompareError, EntryKind, FolderComparer, FolderDiff, FolderStats,
+    FsEntry, HashJob, Side, TreeNode,
+};
+pub use hasher::Hasher;
+
 /// Installs a panic hook so Rust panics surface as readable JS console errors
 /// instead of an opaque `unreachable` trap.
 #[cfg(target_arch = "wasm32")]
