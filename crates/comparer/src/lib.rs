@@ -15,7 +15,7 @@ mod text;
 
 pub use folder::FolderComparer;
 pub use hasher::Hasher;
-pub use images::{ImageComparison, compare_images, compare_images_rgba};
+pub use images::{ImageComparison, ImagePair, compare_images, compare_images_rgba};
 pub use text::{generate_diff, generate_inline_diff};
 
 /// An error from any comparison, thrown into JavaScript as an `Error` with this message.
