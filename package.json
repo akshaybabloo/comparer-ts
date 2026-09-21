@@ -51,7 +51,7 @@
     "folder-diff",
     "image-diff"
   ],
-  "packageManager": "pnpm@12.4.1",
+  "packageManager": "pnpm@12.5.0",
   "devDependencies": {
     "@typescript/typescript6": "^6.0.2",
     "prettier": "^3.9.6",
