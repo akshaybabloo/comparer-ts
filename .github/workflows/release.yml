@@ -13,7 +13,7 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   publish:
-    name: Publish to npm
+    name: Stage on npm
     needs: test
     runs-on: ubuntu-latest
     permissions:
@@ -49,8 +49,8 @@ jobs:
           fi
           echo "TARBALL=$tarball" >> "$GITHUB_ENV"
 
-      - name: Publish
-        run: pnpm publish "$TARBALL" --access public --provenance --no-git-checks
+      - name: Stage
+        run: pnpm stage publish "$TARBALL" --access public --provenance --no-git-checks
 
   release:
     name: Release on GitHub
@@ -61,4 +61,5 @@ jobs:
     steps:
       - uses: softprops/action-gh-release@v3
         with:
+          draft: true
           generate_release_notes: true
